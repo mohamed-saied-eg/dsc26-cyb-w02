@@ -1,22 +1,10 @@
-# AI usage: dsc26-cyb-w02
-
-Keep the three headings below exactly as they are. The grader stops and scores 0 if this file is
-missing or any of the three headings is missing. It does not score what you write; your Track
-Mentor reads it, and the W8 defence can ask about it.
-
 ## Tools
-
-<!-- Which AI tools you used (or "none"), and for which parts of the task. -->
+I used Claude to write a first draft of tmcheck/core.py and tmcheck/__main__.py, and to draft the new threats in models/rawaj_scoring.yaml. Claude also gave feedback on my written answers below (it told me whether they were correct and pointed out one inaccurate sentence in answer 1, which I rewrote) and translated them from Arabic to English. The ideas are mine.
 
 ## What AI got wrong
-
-<!-- At least one thing an AI tool got wrong that you changed, and how you noticed:
-     a test, the docs, running it. -->
+The first draft named the flow kind "flow", but the public test calls applicable("data_flow"). The mismatch showed up when the draft was compared with tests/test_public.py, and applicable() was changed to accept both names.
 
 ## In my own words
+1. A data store has no Spoofing in STRIDE per element, because it is data at rest that does not start connections and does not log in to anything. That threat moves to the process that talks to it, because the process has to make sure it is talking to the right data store.
 
-<!-- One or two sentences each, written without AI. -->
-
-1. Why does a data store have no Spoofing threats in STRIDE per element, and where does that threat go instead?
-
-2. Which of your eleven new threats would you fix first, and why that one?
+2. T30 has the highest score among the new threats (16 = 4 × 4). Its likelihood of 4 out of 5 makes sense because the problem is in the design itself, and the fix is clear: restrict which analysts can see full IDs, according to each analyst's permissions.
