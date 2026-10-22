@@ -40,12 +40,8 @@ SECTIONS = ("zones", "elements", "flows", "threats")
 CATEGORIES = ("S", "T", "R", "I", "D", "E")  # STRIDE order
 STATUSES = ("open", "mitigated", "accepted")
 ENCRYPTED = {"https", "tls", "mtls", "sftp", "ssh"}
-ELEMENT_KINDS = {
-    "external": "external",
-    "external_entity": "external",
-    "process": "process",
-    "data_store": "data_store",
-}
+ELEMENT_KINDS = ("external_entity", "process", "data_store")
+FLOW_KIND = "data_flow"
 
 
 # ---------------------------------------------------------------- helpers
@@ -63,6 +59,12 @@ def _key(value):
 
 def _ref(item):
     return str(item.get("id"))
+
+
+def _kind(element):
+    """The element's kind if it is one of the three valid kinds, else None."""
+    kind = element.get("kind")
+    return kind if isinstance(kind, str) and kind in ELEMENT_KINDS else None
 
 
 def _valid_score(value) -> bool:
@@ -125,18 +127,15 @@ def load_model(path) -> dict:
 
 def applicable(kind: str, *, is_log: bool = False) -> set[str]:
     """STRIDE per element: the categories that apply to `kind`. Unknown kind: ValueError."""
-    canon = ELEMENT_KINDS.get(kind) if isinstance(kind, str) else None
-    if canon is None and kind in ("data_flow", "flow"):
-        canon = "flow"
-    if canon is None:
-        raise ValueError(f"unknown kind: {kind!r}")
-    if canon == "external":
+    if kind == "external_entity":
         return {"S", "R"}
-    if canon == "process":
+    if kind == "process":
         return set(CATEGORIES)
-    if canon == "data_store":
+    if kind == "data_store":
         return {"T", "I", "D", "R"} if is_log else {"T", "I", "D"}
-    return {"T", "I", "D"}  # flow
+    if kind == FLOW_KIND:
+        return {"T", "I", "D"}
+    raise ValueError(f"unknown kind: {kind!r}")
 
 
 def validate(model: dict) -> list[Issue]:
@@ -149,20 +148,20 @@ def validate(model: dict) -> list[Issue]:
 
     zone_ids = {_key(z.get("id")) for z in zones}
 
-    # one id space for elements, flows and threats
-    counts = Counter(_key(x.get("id")) for x in elements + flows + threats)
+    # one id space for zones, elements, flows and threats
+    counts = Counter(_key(x.get("id")) for x in zones + elements + flows + threats)
     for ident, n in counts.items():
         if ident is not None and n > 1:
             issues.add(Issue(ident, "DUPLICATE_ID", f"id used {n} times in the model"))
 
     element_ids = set()
-    element_kind = {}   # id -> canonical kind (valid kinds only)
+    element_kind = {}   # id -> kind (valid kinds only)
     element_log = {}
     for e in elements:
         ref = _ref(e)
         eid = _key(e.get("id"))
         element_ids.add(eid)
-        kind = ELEMENT_KINDS.get(e.get("kind")) if isinstance(e.get("kind"), str) else None
+        kind = _kind(e)
         if kind is None:
             issues.add(Issue(ref, "BAD_KIND", f"unknown kind: {e.get('kind')!r}"))
         else:
@@ -196,7 +195,7 @@ def validate(model: dict) -> list[Issue]:
             kind = element_kind.get(target)
             is_log = element_log.get(target, False)
         elif target in flow_ids:
-            kind = "flow"
+            kind = FLOW_KIND
         else:
             issues.add(Issue(ref, "UNKNOWN_REF", f"target {target!r} does not exist"))
 
@@ -234,10 +233,9 @@ def coverage_gaps(model: dict) -> list[Gap]:
 
     scope = {}  # ref -> (kind, is_log)
     for flow, s, t in _crossing(model):
-        scope.setdefault(_ref(flow), ("flow", False))
+        scope.setdefault(_ref(flow), (FLOW_KIND, False))
         for end in (s, t):
-            kind = ELEMENT_KINDS.get(elements[end].get("kind")) \
-                if isinstance(elements[end].get("kind"), str) else None
+            kind = _kind(elements[end])
             if kind is not None:
                 scope[end] = (kind, elements[end].get("is_log") is True)
 
