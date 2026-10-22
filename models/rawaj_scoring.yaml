@@ -24,44 +24,13 @@ flows:
   - {id: f05, source: scorer, target: case_db, data: [flag, explanation], protocol: tls, authenticated: true}
   - {id: f06, source: scorer, target: audit_log, data: [decision_record], protocol: tls, authenticated: true}
   - {id: f07, source: analyst, target: analyst_console, data: [case_decision], protocol: https, authenticated: true}
-  - {id: f08, source: analyst_console, target: case_db, data: [case_decision, customer_pii], protocol: postgres, authenticated: true}
+  - {id: f08, source: analyst_console, target: case_db, data: [case_decision, customer_pii], protocol: tls, authenticated: true}
 threats:
-  - id: T1
-    target: f01
-    category: T
-    title: Transfer amount or beneficiary altered between the wallet app and the gateway
-    likelihood: 2
-    impact: 5
-    status: mitigated
-    mitigation: TLS 1.2+ with HSTS; request body signed by the app session key
-  - id: T2
-    target: api_gateway
-    category: S
-    title: Attacker replays a stolen wallet session token to submit transfers
-    likelihood: 4
-    impact: 4
-    status: open
-  - id: T3
-    target: api_gateway
-    category: D
-    title: Burst of scoring requests during a scam campaign exhausts gateway workers
-    likelihood: 3
-    impact: 4
-    status: open
-  - id: T4
-    target: scorer
-    category: I
-    title: Scorer explanations reveal the exact rule thresholds to the customer
-    likelihood: 3
-    impact: 5
-    status: open
-  - id: T5
-    target: case_db
-    category: I
-    title: Analyst exports customer PII from the case database to a personal laptop
-    likelihood: 3
-    impact: 4
-    status: open
+  - {id: T1, target: f01, category: T, title: Transfer amount or beneficiary altered between the wallet app and the gateway, likelihood: 2, impact: 5, status: mitigated, mitigation: TLS 1.2+ with HSTS; request body signed by the app session key}
+  - {id: T2, target: api_gateway, category: S, title: Attacker replays a stolen wallet session token to submit transfers, likelihood: 4, impact: 4, status: open}
+  - {id: T3, target: api_gateway, category: D, title: Burst of scoring requests during a scam campaign exhausts gateway workers, likelihood: 3, impact: 4, status: open}
+  - {id: T4, target: scorer, category: I, title: Scorer explanations reveal the exact rule thresholds to the customer, likelihood: 3, impact: 5, status: open}
+  - {id: T5, target: case_db, category: I, title: Analyst exports customer PII from the case database to a personal laptop, likelihood: 3, impact: 4, status: open}
   - {id: T6, target: wallet_app, category: S, title: Scammer installs a cloned wallet app that harvests customer credentials, likelihood: 3, impact: 4, status: open}
   - {id: T7, target: wallet_app, category: R, title: Customer denies authorising a transfer that the scam script talked them into, likelihood: 4, impact: 3, status: mitigated, mitigation: Device binding plus signed transfer confirmation stored with the decision record}
   - {id: T8, target: payment_switch, category: S, title: A host on the rails network impersonates the payment switch and injects fake events, likelihood: 1, impact: 5, status: mitigated, mitigation: Mutual TLS with the switch certificate pinned at the gateway}
@@ -83,3 +52,15 @@ threats:
   - {id: T24, target: scorer, category: R, title: Scorer cannot show which model version produced a past flag, likelihood: 3, impact: 4, status: open}
   - {id: T25, target: scorer, category: D, title: Crafted transfer graph with huge fan-out makes scoring take seconds, likelihood: 2, impact: 4, status: open}
   - {id: T26, target: case_db, category: D, title: Case database fills its disk during a scam wave and stops accepting flags, likelihood: 2, impact: 4, status: open}
+  - {id: T27, target: analyst_console, category: S, title: Attacker with a phished analyst password signs in to the console as that analyst, likelihood: 3, impact: 4, status: mitigated, mitigation: Console login needs the office SSO plus a second factor and locks after five failed attempts}
+  - {id: T28, target: analyst_console, category: T, title: Browser extension on an analyst laptop changes a case decision before it is saved, likelihood: 2, impact: 4, status: open}
+  - {id: T29, target: analyst_console, category: R, title: Analyst denies unfreezing a mule account and the console has no action record, likelihood: 3, impact: 4, status: mitigated, mitigation: Every case decision is saved with analyst id and time in an append-only history table}
+  - {id: T30, target: analyst_console, category: I, title: Review screen shows full national IDs and account numbers to every analyst, likelihood: 4, impact: 4, status: open}
+  - {id: T31, target: analyst_console, category: D, title: Heavy case searches from one analyst slow the console during a scam wave, likelihood: 2, impact: 3, status: open}
+  - {id: T32, target: analyst_console, category: E, title: Junior analyst calls the supervisor only unfreeze endpoint directly, likelihood: 3, impact: 5, status: open}
+  - {id: T33, target: case_db, category: T, title: Case decision rows edited straight in the database to hide a flagged mule account, likelihood: 2, impact: 5, status: mitigated, mitigation: Separate database roles per service and a weekly review of the row change history}
+  - {id: T34, target: f08, category: T, title: Case decisions altered on the office network between the console and the case database, likelihood: 2, impact: 4, status: mitigated, mitigation: TLS 1.2+ on the database connection with the server certificate verified}
+  - {id: T35, target: f08, category: I, title: Customer PII from case queries read by a device sniffing the office network, likelihood: 2, impact: 5, status: mitigated, mitigation: TLS 1.2+ on the database connection and no plaintext fallback allowed}
+  - {id: T36, target: f08, category: D, title: Compromised laptop opens thousands of connections and exhausts the case database, likelihood: 2, impact: 3, status: open}
+  - {id: T37, target: scorer, category: E, title: Scorer service account can write to every store so one scorer bug lets an attacker edit cases, likelihood: 2, impact: 5, status: open}
+  - {id: T38, target: feature_store, category: I, title: Engineer with database access reads personal account features straight from the feature store, likelihood: 2, impact: 4, status: open}
